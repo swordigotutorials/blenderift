@@ -1,2 +1,2 @@
 # blenderift
-A tool for exporting Swordigo's .POD skinned models to Blender and importing them back
+A tool for exporting Swordigo's .POD rigged models to Blender and importing them back
