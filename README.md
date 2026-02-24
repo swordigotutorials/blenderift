@@ -10,3 +10,6 @@ A tool for exporting Swordigo's .POD rigged models to Blender and importing them
 
 ## Usage
 TODO: make a tutorial
+
+## Credits
+TODO: give credits to podblender and jpod.py
