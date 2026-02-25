@@ -165,7 +165,8 @@ for i in range(meshnum, len(bones2) - meshnum):
     bone.head = (0, 0, 0)
     bone.tail = (0, 1, 0)
     bone.matrix = matrix
-    
+    if bone.name == "CenterPoint":
+        centerpoint = mathutils.Vector((bone.head[2]/100, bone.head[0]/100, bone.head[1]/100))
     realbones[i] = bone
 for i in range(meshnum, len(bones2) - meshnum):
     
@@ -332,3 +333,8 @@ bpy.ops.object.select_all(action="SELECT")
 armature.select_set(False)
 bpy.ops.transform.mirror(orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', constraint_axis=(False, True, False))
 #bpy.ops.transform.rotate(value=1.5708, orient_axis='Z', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', constraint_axis=(False, False, True), mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=False, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
+try:
+    armature.location = centerpoint
+except NameError:
+    print("There's no CenterPoint")
+armature.rotation_euler = mathutils.Vector((1.57079633, 0, 0))
