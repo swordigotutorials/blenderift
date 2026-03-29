@@ -47,6 +47,7 @@ def normalize_coords(pos, YZInversion=True):
         return (x, y, z)
 def create_mesh(data, position, rotation, scale, mesh_name="Mesh"):
     vertices = data["vtxdata"]
+    vertices2 = data["vtxdataalt"] #Some models have "Interleave vertex data" disabled. This is for those cases
 #    normals = data["Normals"]
     indices = data["facdata"]
 #    position = data["Position"]
@@ -85,16 +86,27 @@ def create_mesh(data, position, rotation, scale, mesh_name="Mesh"):
     for i in range(0, len(indices)):
         try:
             face_indices = indices[i]
-            bm_faces = [bm_verts[j] for j in face_indices]
+            try:  # There's a better way of doing this but whatever
+                bm_faces = [bm_verts[j] for j in face_indices]
+            except IndexError:
+                #bm_verts = [bm.verts.new(normalize_coords(v[0:3])) for v in vertices2]
+                data["vtxdata"] = vertices2
+                vertices = data["vtxdata"]
+                bm_verts = [bm.verts.new(normalize_coords(v[0:3])) for v in vertices]
+                bm_faces = [bm_verts[j] for j in face_indices]
             face = bm.faces.new(bm_faces)
 
-            for loop, uv in zip(face.loops, [vertices[j][6:8] for j in face_indices]):
-                loop[uv_layer].uv = (uv[0], uv[1])  # Keep same pos
+            try:
+                for loop, uv in zip(face.loops, [vertices[j][6:8] for j in face_indices]):
+                    loop[uv_layer].uv = (uv[0], uv[1])  # Keep same pos
+            except IndexError:
+                pass # TODO: add uv stuff for the uninterlvd models
         except ValueError:
             pass
     normals = []
     for j in range(len(vertices)):
         normals.append(vertices[j][3:6])
+        #TODO: add support for uninterlvd models
     if normals:
         for vert, norm in zip(bm.verts, normals):
             vert.normal = norm
@@ -107,13 +119,15 @@ def create_mesh(data, position, rotation, scale, mesh_name="Mesh"):
     return obj
 def assign_weights(obj, bones, meshdata):
     for i in range(len(meshdata['vtxdata'])):
-        
-        index = meshdata['vtxdata'][i][8]
-        realindex = meshdata["boneind"][index]
-        groupname = bones[realindex]["name"]
-        obj.vertex_groups[str(groupname)[2:-1]].add([i], meshdata['vtxdata'][i][9], 'REPLACE')
+        try:
+            index = meshdata['vtxdata'][i][8]
+            realindex = meshdata["boneind"][index]
+            groupname = bones[realindex]["name"]
+            obj.vertex_groups[str(groupname)[2:-1]].add([i], meshdata['vtxdata'][i][9], 'REPLACE')
+        except IndexError:
+            continue
 
-
+    #TODO: add support for uninterlvd models
 def matrix_world(armature_ob, bone_name):
     local = armature_ob.data.bones[bone_name].matrix_local
     basis = armature_ob.pose.bones[bone_name].matrix_basis
@@ -154,6 +168,8 @@ for i in range(meshnum, len(bones) - meshnum):
     numframes = len(bonedata["pos"])
 for i in range(meshnum, len(bones2) - meshnum):
     bonedata = bones2[i]
+    if "Armature" in str(bonedata["name"]):
+        continue
 #    if len(bones2[i]["pos"]) < 2 and len(bones2[i]["rot"]) < 2 and len(bones2[i]["scale"]) < 2:
 #        continue
 #    numframes = len(bonedata["pos"])
@@ -333,8 +349,8 @@ bpy.ops.object.select_all(action="SELECT")
 armature.select_set(False)
 bpy.ops.transform.mirror(orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', constraint_axis=(False, True, False))
 #bpy.ops.transform.rotate(value=1.5708, orient_axis='Z', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', constraint_axis=(False, False, True), mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=False, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
-try:
-    armature.location = centerpoint
-except NameError:
-    print("There's no CenterPoint")
+#try:
+#    armature.location = centerpoint
+#except NameError:
+#    print("There's no CenterPoint")
 armature.rotation_euler = mathutils.Vector((1.57079633, 0, 0))

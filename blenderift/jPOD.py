@@ -318,6 +318,15 @@ def processPOD(inputFilename):
     outputFile.write("\"Source\": \""+inputFilename+"\",\n")
     replmesh = False
     replfac = False
+
+    #Some models have "Interleave vertex data" disabled. This is for those cases
+    repluninterlvd = 0  #   0   -
+                        #   1   vtx
+                        #   2   nor
+                        #   3   uv
+                        #   4   boneind
+                        #   5   bonewght
+
     mbdata = {"Meshes": [],
             "Bones": []}
     meshes = mbdata["Meshes"]
@@ -348,6 +357,7 @@ def processPOD(inputFilename):
                     if id == 2012:
                         meshn = counter[4]-1
                         offs = {"vtxdata": [],
+                                "vtxdataalt": [], #Some models have "Interleave vertex data" disabled. This is for those cases
                                 "facdata": [],
                                 "boneind": []}
 
@@ -380,10 +390,33 @@ def processPOD(inputFilename):
         size = val
 
         if (isEnd==False and size==0): outputFile.write("{\n") # Start of new block
-        if id == 6003 and meshn != -1:
-            replfac = True
+
+        #If you have an allergy to bad code then you might wanna look away before reading the following code
+        if id == 6003:
+            repluninterlvd = 0
+            if meshn != -1:
+                replfac = True
         elif id == 6006:
             replfac = False
+            if meshn != -1:
+                repluninterlvd = 1
+        elif id == 6007:
+            repluninterlvd = 0
+            if meshn != -1:
+                repluninterlvd = 2
+        elif id == 6008:
+            repluninterlvd = 0
+        elif id == 6010 and meshn != 1:
+            repluninterlvd = 3
+        elif id == 6011:
+            repluninterlvd = 0
+        elif id == 6012 and meshn != -1:
+                repluninterlvd = 4
+        elif id == 6013:
+            repluninterlvd = 0
+            if meshn != -1:
+                repluninterlvd = 5
+
         # Read data (if any)
         if (size > 0):
             offset = input.tell()
@@ -434,6 +467,69 @@ def processPOD(inputFilename):
                     #offs["facdatasize"] = size
                     input.seek(offset + size)
                     replfac = False
+
+                elif id == 9003:
+                    try:
+                        if repluninterlvd == 1:
+                            input.seek(offset)
+                            for i in range(size // 12):
+                                ver = []
+
+                                for j in range(3):
+                                    fl = input.read(4)
+                                    form = "<f"
+                                    flv = struct.unpack(form, fl)[0]
+                                    ver.append(flv)
+                                offs["vtxdataalt"].append(ver)
+                            input.seek(offset + size)
+                            repluninterlvd = 0
+                        elif repluninterlvd == 2:
+                            input.seek(offset)
+                            for i in range(size // 12):
+                                ver = []
+
+                                for j in range(3):
+                                    fl = input.read(4)
+                                    form = "<f"
+                                    flv = struct.unpack(form, fl)[0]
+                                    ver.append(flv)
+                                offs["vtxdataalt"][i][3:6] = ver[0:3]
+                            input.seek(offset + size)
+                            repluninterlvd = 0
+                        elif repluninterlvd == 3:
+                            input.seek(offset)
+                            for i in range(size // 8):
+                                ver = []
+
+                                for j in range(2):
+                                    fl = input.read(4)
+                                    form = "<f"
+                                    flv = struct.unpack(form, fl)[0]
+                                    ver.append(flv)
+                                offs["vtxdataalt"][i][6:8] = ver[0:2]
+                            input.seek(offset + size)
+                            repluninterlvd = 0
+                        elif repluninterlvd == 4:
+                            input.seek(offset)
+                            for i in range(size // 4):
+                                fl = input.read(4)
+                                form = "<i"
+                                flv = struct.unpack(form, fl)[0]
+                                offs["vtxdataalt"][i].append(flv)
+                            input.seek(offset + size)
+                            repluninterlvd = 0
+                        elif repluninterlvd == 5:
+                            input.seek(offset)
+                            for i in range(size // 4):
+                                fl = input.read(4)
+                                form = "<f"
+                                flv = struct.unpack(form, fl)[0]
+                                offs["vtxdataalt"][i].append(flv)
+                            input.seek(offset + size)
+                            repluninterlvd = 0
+                    except IndexError:
+                        continue
+
             elif bonen != -1:
                 offs = bones[bonen]
                 if id == 5001:
